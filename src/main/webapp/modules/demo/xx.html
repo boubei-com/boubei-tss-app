@@ -1,0 +1,318 @@
+<!DOCTYPE HTML>
+<HTML xmlns:WorkSpace xmlns:Tree xmlns:Grid>
+<head>
+<meta http-equiv="X-UA-Compatible" content="IE=edge"/>    
+<meta charset="UTF-8">
+<title>TSS资源 Demo</title>
+
+<link href="../../tools/tssJS/css/boubei.css" rel="stylesheet">
+<link href="../../css/css.css" rel="stylesheet">
+
+<script src="../../tools/tssJS/tssJS.all.js"></script>
+<script src="../../tools/tssUtils.js"></script>
+
+<SCRIPT type="text/javascript">
+<!-- 
+/* 后台响应数据节点名称 */
+XML_SOURCE_TREE = "SourceTree";
+XML_SOURCE_LIST = "SourceList";
+XML_SOURCE_INFO = "SourceInfo";
+
+/* XMLHTTP请求地址汇总 */
+URL_SOURCE_TREE    = AUTH_PATH + "xx/tree";
+URL_SOURCE_LIST    = AUTH_PATH + "xx/grid/";
+URL_SOURCE_DETAIL  = AUTH_PATH + "xx/";
+URL_SAVE_SOURCE    = AUTH_PATH + "xx";
+URL_DELETE_SOURCE  = AUTH_PATH + "xx/";
+URL_SORT_SOURCE    = AUTH_PATH + "xx/sort/";
+URL_MOVE_SOURCE    = AUTH_PATH + "xx/move/";
+URL_GET_OPERATION  = AUTH_PATH + "xx/operations/";  // {id}
+
+if(IS_TEST) {
+    URL_SOURCE_TREE    = "data/xx_tree.xml?";
+    URL_SOURCE_LIST    = "data/xx_grid.xml?";
+    URL_SOURCE_DETAIL  = "data/xx1.xml?";
+    URL_SAVE_SOURCE    = "data/_success.xml?";
+    URL_DELETE_SOURCE  = "data/_success.xml?";
+    URL_SORT_SOURCE    = "data/_success.xml?";
+    URL_MOVE_SOURCE    = "data/_success.xml?";
+    URL_GET_OPERATION  = "data/_operation.xml?";
+}
+
+/* 页面初始化 */
+function init() {
+    initMenus();
+    initWorkSpace();
+    initEvents();
+
+    loadInitData();
+    loadGridData({}, "1"); 
+}
+
+function initMenus() {
+    /* 树菜单初始化  */
+    var item1 = {
+        label:"查看",
+        callback: function() {
+            showDetail(true);
+        },
+        icon: "images/icon_view.gif",
+        visible:function() {return !isTreeRoot() && getOperation("1"); }
+    }
+    var item2 = {
+        label:"修改",
+        callback: function() {
+            showDetail();
+        },
+        icon: ICON + "icon_edit.gif",
+        visible:function() {return !isTreeRoot() && getOperation("2"); }
+    }
+    var item3 = {
+        label:"新增",
+        callback: function() {
+            showDetail(false, true);
+        },
+        icon: ICON + "icon_new.gif",
+        visible:function() {return getOperation("2");}
+    }
+    var item4 = {
+        label:"删除",
+        callback:deleteSource,
+        icon: ICON + "icon_del.gif",
+        visible:function() {return !isTreeRoot() && getOperation("3");}
+    }
+    var item5 = {
+        label:"移动到",
+        callback:moveSource,
+        icon: ICON + "icon_move.gif",
+        visible:function() {return !isTreeRoot() && getOperation("2");}
+    }
+    var item6 = {
+        label:"搜索",
+        callback:search,
+        icon: ICON + "icon_search.gif",
+        visible:function() { return !isTreeRoot(); }
+    }
+
+    var menu = new $.Menu();
+    menu.addItem(item1);
+    menu.addItem(item2);
+    menu.addItem(item3);
+    menu.addItem(item4);
+    menu.addSeparator();
+    menu.addItem(item5);
+    menu.addItem(item6);
+
+    $1("tree").contextmenu = menu;
+
+    /* Grid菜单初始化  */
+    var item3 = {
+        label:"查看",
+        callback: showDetail,
+        icon: "images/icon_view.gif"
+    }
+
+    var menu2 = new $.Menu();
+    menu2.addItem(item3);
+    $1("grid").contextmenu = menu2;
+}
+
+function loadInitData() {
+    var onresult = function() {
+        var tree = $.T("tree", this.getNodeValue(XML_SOURCE_TREE));
+
+        tree.onTreeNodeDoubleClick = function(ev) {
+            var treeNode = getActiveTreeNode();
+            getTreeOperation(treeNode, function(_operation) {    
+                if(getOperation("2")) {
+                    showDetail();
+                }       
+            });
+        }
+        tree.onTreeNodeRightClick = function(ev) {
+            onTreeNodeRightClick(ev, true);
+            $("#searchFormDiv").hide();
+        }
+        tree.onTreeNodeMoved = function(ev) {
+            $("#searchFormDiv").hide();
+            sortTreeNode(URL_SORT_SOURCE, ev);
+        }
+    }
+
+    $.ajax({url: URL_SOURCE_TREE, onresult: onresult});
+}
+
+/* grid加载数据  */
+function loadGridData(params, page) {
+    $.showGrid(URL_SOURCE_LIST, XML_SOURCE_LIST, showDetail, "grid", page, params);
+}
+
+function search() {
+    var treeNode = $.T("tree").getActiveTreeNode();
+    popupForm("data/search_form.xml", "search", {operateTable: treeNode.id}, function(condition) {
+        loadGridData(condition, "1"); 
+    }, "资源查询");
+}
+
+/* 显示资源详细信息 */
+function showDetail(readonly, isCreate) {    
+    var rowID = $.G("grid").getColumnValue("id");  
+    var rowName = "资源" + (rowID ? rowID : "_NEW");
+
+    var callback = {};
+    callback.onTabClose = function(eventObj){
+        if( ws.noTabOpend() ) {
+            $("#ws").hide();
+        }            
+    };
+
+    callback.onTabChange = function() {
+        setTimeout(function() {
+            loadDetailData(rowID, isCreate);
+
+            var $buttons = $("#ws input[type='button']");
+            if(readonly) {
+                $buttons.hide(); 
+            } else {
+                $buttons.show(); 
+            }
+            
+            $("#page1Form").attr('editable', readonly ? "false" : "true");
+
+        }, TIMEOUT_TAB_CHANGE);
+    };
+
+    var inf = {};
+    inf.label = rowName;
+    inf.SID = "viewRow_" + rowID;
+    inf.defaultPage = "page1";
+    inf.phases = null;
+    inf.callback = callback;
+    var tab = ws.open(inf);   
+
+    $("#ws").show(true);    
+}
+
+function loadDetailData(sourceId, isCreate) {
+    $.ajax({
+        url : URL_SOURCE_DETAIL + (isCreate ? 'new' : sourceId),
+		method : "GET", 
+        onresult : function() { 
+            var sourceInfoNode = this.getNodeValue(XML_SOURCE_INFO);
+            $.cache.XmlDatas[sourceId] = sourceInfoNode;
+
+            var xform = $.F("page1Form", sourceInfoNode);
+            if(isCreate) {
+                xform.parentId = sourceId;
+            }
+
+            // 设置保存/关闭按钮操作
+            $1("page1BtCancel").onclick = function() {
+                ws.closeActiveTab();
+            }
+            $1("page1BtSave").onclick = function() {
+                saveSource(sourceId);
+            }
+        }
+    });
+}
+
+function saveSource(treeNodeID) {
+    var xform = $.F("page1Form");  
+    if( !xform.checkForm() ) return;
+
+    var request = new $.HttpRequest();
+    request.url = URL_SAVE_SOURCE;
+
+    var sourceInfoNode = $.cache.XmlDatas[treeNodeID];
+    var dataNode = sourceInfoNode.querySelector("data");
+    request.setFormContent(dataNode);
+    if(xform.parentId) {
+        request.addParam("parentId", (xform.parentId == '_root' ? '0' : xform.parentId));
+    }
+
+    syncButton([$1("page1BtSave")], request); // 同步按钮状态
+
+    request.onresult = function() { // 新增结果返回              
+        var xmlNode = this.getNodeValue(XML_SOURCE_TREE).querySelector("treeNode");
+        appendTreeNode(treeNodeID, xmlNode);
+        ws.closeActiveTab();
+    }
+    request.onsuccess = function() { // 更新
+        modifyTreeNode(treeNodeID, "name", xform.getData("name"));
+        ws.closeActiveTab();
+    }
+    request.send();
+}
+
+function deleteSource()  { 
+    delTreeNode(URL_DELETE_SOURCE); 
+}
+
+function moveSource() {
+    var tree = $.T("tree");
+    var treeNode = tree.getActiveTreeNode();
+    var id  = treeNode.id;
+    var pId = treeNode.parent.id;
+
+    var params = {id: id, parentID: pId};
+    popupTree(URL_SOURCE_TREE, XML_SOURCE_TREE, params, function(target) {
+        var targetId = (target.id == '_root' ? '0' : target.id);
+        moveTreeNode(tree, id, targetId, URL_MOVE_SOURCE);
+    });
+}       
+
+window.onload = init;
+
+//-->
+</SCRIPT>
+
+</head>
+
+<body>
+
+<!-- 版面 开始 -->
+<table class="panel" >
+  <tr class="header"> <td/><td/><td/><td/> </tr>
+  <tr class="body"> 
+  <td/>
+  <!-- 左栏 开始 -->
+  <td id="palette">
+    <div>
+        <div class="bar">
+          <span class="icon"></span>资源树
+          <span class="refreshTreeBT"></span>
+        </div>
+        <Tree id="tree" moveable="true"></Tree>
+    </div> 
+  </td>
+  <!-- 左栏 结束 -->
+  <td class="groove">
+    <table>
+        <tr>
+          <td id="gridTitle">
+            <span class="icon"></span>资源列表<span class="buttonBox" id="gridToolBar"></span>
+          </td>
+        </tr>
+        <tr>
+          <td id="gridContainer"><Grid id="grid"></Grid></td>
+        </tr>
+    </table>
+    <WorkSpace:Box id="ws" class="hiddenWS" style="height:350px;">
+        <WorkSpace:Page id="page1">
+            <div id="page1Form" editable="true"></div>
+            <WorkSpace:PageStep>
+                <input type="button" class="btStrong" value="完成" id="page1BtSave"/>&nbsp;
+                <input type="button" class="btWeak" value="取消" id="page1BtCancel"/>
+            </WorkSpace:PageStep>
+        </WorkSpace:Page>
+    </WorkSpace:Box>
+  </td>
+  <td/>
+  </tr>
+  <tr class="footer"> <td/><td/><td/><td/> </tr>
+</table>
+<!-- 版面 结束 -->
+
+</body>
+</html>
