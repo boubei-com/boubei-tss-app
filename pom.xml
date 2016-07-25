@@ -30,7 +30,7 @@
 		
 		
 <!-- --------------------------------- tss-all.jar dependence start -------------------------------->	
-		<!-- BASE dependency -->
+<!--
 		<dependency>
 			<groupId>commons-beanutils</groupId>
 			<artifactId>commons-beanutils</artifactId>
@@ -69,7 +69,6 @@
 			</exclusions>
 		</dependency>
 
-		<!-- SPRING DEPENDENCIES -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-core</artifactId>
@@ -116,7 +115,6 @@
 			<version>${spring.version}</version>
 		</dependency>
 
-		<!-- Add JPA 2.0 / Hibernate 3 dependencies -->
 		<dependency>
 			<groupId>org.hibernate.javax.persistence</groupId>
 			<artifactId>hibernate-jpa-2.0-api</artifactId>
@@ -134,14 +132,12 @@
 			<version>0.9.1.2</version>
 		</dependency>
 		
-		<!-- Mysql DB driver 4 release -->
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
 			<version>5.1.6</version>
 		</dependency>
 
-		<!-- Other DEPENDENCIES -->
 		<dependency>
 			<groupId>freemarker</groupId>
 			<artifactId>freemarker</artifactId>
@@ -170,7 +166,6 @@
 			<version>1.8.6</version>
 		</dependency>
 
-		<!-- Jackson JSON Mapper -->
 		<dependency>
 			<groupId>org.codehaus.jackson</groupId>
 			<artifactId>jackson-jaxrs</artifactId>
@@ -187,6 +182,7 @@
 			<artifactId>commons-lang</artifactId>
 			<version>2.6</version>
 		</dependency>
+-->
 <!-- --------------------------------- tss-all.jar dependence end -------------------------------->		
 		
 		

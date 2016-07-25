@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang.StringUtils;
-import org.krysalis.barcode4j.impl.code39.Code39Bean;
+import org.krysalis.barcode4j.impl.code128.Code128Bean;
 import org.krysalis.barcode4j.output.bitmap.BitmapCanvasProvider;
 import org.krysalis.barcode4j.tools.UnitConv;
 import org.springframework.stereotype.Controller;
@@ -95,14 +95,14 @@ public class ImageCodeAPI {
     public static void generate(String msg, OutputStream ous) {
         if (StringUtils.isEmpty(msg) || ous == null) return;
  
-        Code39Bean bean = new Code39Bean();
+        Code128Bean bean = new Code128Bean();
         
         final int dpi = 150; // 精细度
         final double moduleWidth = UnitConv.in2mm(1.0f / dpi); // module宽度
  
         // 配置对象
         bean.setModuleWidth(moduleWidth);
-        bean.setWideFactor(5);
+        bean.setHeight(2.0D);
         bean.doQuietZone(false);
  
         try {
