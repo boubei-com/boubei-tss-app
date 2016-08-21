@@ -6,11 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.font.FontRenderContext;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 
 import javax.imageio.ImageIO;
 import javax.servlet.ServletOutputStream;
@@ -26,24 +22,23 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 
+import com.boubei.tss.framework.exception.BusinessException;
+import com.boubei.tss.util.EasyUtils;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
 /**
  * 生成图形验证码、条形码、二维码等图形
- * http://localhost:9000/tss/imgapi/ckcode/8341
- * http://localhost:9000/tss/imgapi/barcode/8341
- * http://localhost:9000/tss/imgapi/qrcode/8341
  */
 @Controller
-@RequestMapping("/imgapi")
+@RequestMapping("/imgcode")
 public class ImageCodeAPI {
 	
 	/**
-	 * 生成图形验证码：http://localhost:9000/tss/imgapi/ckcode/8341
+	 * 生成图形验证码：http://localhost:9000/tss/imgcode/ck/8341
 	 */
-	@RequestMapping(value = "/ckcode/{code}", method = RequestMethod.GET)
+	@RequestMapping(value = "/ck/{code}", method = RequestMethod.GET)
 	public void createCKCodeImg(@PathVariable("code") String code,
 			HttpServletRequest request, HttpServletResponse response) {
  
@@ -82,60 +77,58 @@ public class ImageCodeAPI {
 	}
 	
 	/**
-	 * 生成条形码：http://localhost:9000/tss/imgapi/barcode/8341
+	 * 生成条形码：http://localhost:9000/tss/imgcode/bar/10249025592?size=1.2
 	 */
-	@RequestMapping(value = "/barcode/{code}", method = RequestMethod.GET)  
+	@RequestMapping(value = "/bar/{code}", method = RequestMethod.GET)  
     public void createBarCodeImg(@PathVariable("code") String code, 
     		HttpServletRequest request, HttpServletResponse response) throws IOException { 
    
-        generate(code, response.getOutputStream());
-    }   
- 
-    /** 生成到流 */
-    public static void generate(String msg, OutputStream ous) {
-        if (StringUtils.isEmpty(msg) || ous == null) return;
- 
-        Code128Bean bean = new Code128Bean();
-        
-        final int dpi = 150; // 精细度
-        final double moduleWidth = UnitConv.in2mm(1.0f / dpi); // module宽度
+		if ( StringUtils.isEmpty(code) ) return;
+		String _size = request.getParameter("size");
+		double size = 1.0d;
+		if( !EasyUtils.isNullOrEmpty(_size) ) {
+			try {
+				size = EasyUtils.obj2Double(_size);
+			} catch(Exception e) { }
+		}
+		
+        final int dpi = (int) (120*size); // 精细度
+        final double moduleWidth = UnitConv.in2mm(1.0f*size / dpi); // module宽度
  
         // 配置对象
+        Code128Bean bean = new Code128Bean();
         bean.setModuleWidth(moduleWidth);
-        bean.setHeight(2.0D);
+        bean.setHeight(8.0D * Math.min(size, 2));
         bean.doQuietZone(false);
  
+        ServletOutputStream ous = response.getOutputStream();
         try {
-            // 输出到流
             BitmapCanvasProvider canvas = new BitmapCanvasProvider(ous, "image/png", dpi,
                     BufferedImage.TYPE_BYTE_BINARY, false, 0);
-            // 生成条形码
-            bean.generateBarcode(canvas, msg);
-            // 结束绘制
-            canvas.finish();
             
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            bean.generateBarcode(canvas, code); // 生成条形码
+            canvas.finish(); // 结束绘制
+        } 
+        catch (IOException e) {
+            throw new BusinessException("生成条形码时出错了", e);
+        } finally {
+        	if(ous != null) {
+				try {
+					ous.flush();
+					ous.close();
+				} catch (IOException e) { }
+			}
         }
-    }
-    
-    /** 生成文件 */
-    public static File generateFile(String msg, String path) {
-        File file = new File(path);
-        try {
-            generate(msg, new FileOutputStream(file));
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-        return file;
-    }
- 
-	/**
-	 * 生成二维码码：http://localhost:9000/tss/imgapi/qrcode/8341
-	 */
-    @RequestMapping(value = "/qrcode/{code}", method = RequestMethod.GET)  
-    public void createQrBarCodeImg(@PathVariable("code") String code,
+    }  
+	
+	@RequestMapping(value = "/qrbar/{code}", method = RequestMethod.GET)  
+	public void createQrBarCodeImg(@PathVariable("code") String code,
 			HttpServletRequest request, HttpServletResponse response) {
+		
+		String msg = request.getParameter("msg");
+		if(msg == null) {
+			msg = code;
+		}
 		
 		QRCodeWriter writer = new QRCodeWriter();
 		response.setHeader("Pragma", "No-cache");
@@ -144,7 +137,7 @@ public class ImageCodeAPI {
 		response.setContentType("image/jpeg");
 		BitMatrix bitMatrix = null;
 		try {
-			bitMatrix = writer.encode(code, BarcodeFormat.QR_CODE, 300, 300);
+			bitMatrix = writer.encode(msg, BarcodeFormat.QR_CODE, 300, 300);
 			
 			ServletOutputStream outputStream = response.getOutputStream();
 			MatrixToImageWriter.writeToStream(bitMatrix, "jpeg", outputStream);
@@ -152,8 +145,7 @@ public class ImageCodeAPI {
 			outputStream.close();
 			
 		} catch (Exception e) {
-			e.printStackTrace();
+			throw new BusinessException("生成二维码时出错了", e);
 		} 
 	}
-    
 }
