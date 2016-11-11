@@ -8,3 +8,4 @@ build
 .project
 .svn
 *.db
+.DS_Store
