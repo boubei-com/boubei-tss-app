@@ -36,7 +36,7 @@ function save(){
 }
 
 function checkException(result, callback) {
-    result = result ? eval('(' + result + ')') : "";
+    result = result || {};
     if (result.errorMsg){
         $.messager.show({
             title: '异常信息提示',
